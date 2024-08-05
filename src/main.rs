@@ -11,8 +11,8 @@ use noise::{BasicMulti, Perlin};
 
 use rand::{thread_rng, Rng};
 
-const MAP_SIZE: usize = 200;
-const TILE_SIZE: usize = 4;
+const MAP_SIZE: usize = 1000;
+const TILE_SIZE: usize = 1;
 #[derive(Component)]
 struct NoiseMapComponent(NoiseMap);
 
