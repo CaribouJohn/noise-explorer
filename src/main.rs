@@ -5,7 +5,7 @@ use bevy_pixel_buffer::prelude::*;
 
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 
-use noise::{utils::*, MultiFractal};
+use noise::{utils::*, MultiFractal, OpenSimplex, Simplex, Value};
 use noise::{BasicMulti, Perlin};
 
 const MAP_SIZE: usize = 1000;
@@ -62,15 +62,24 @@ fn get_color(val: f64) -> Color {
 
 #[derive(Component)]
 struct Parameters {
+    kind: NoiseType,
     seed: u32,
     frequency: f64,
     octaves: usize,
     lacunarity: f64,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+enum NoiseType {
+    Perlin,
+    OpenSimplex,
+    Simplex,
+}
+
 impl Default for Parameters {
     fn default() -> Self {
         Self {
+            kind: NoiseType::Perlin,
             seed: 0,
             frequency: 2.0,
             octaves: 4,
@@ -80,14 +89,35 @@ impl Default for Parameters {
 }
 
 fn generate_noise_map(map_size: usize, params: &Parameters) -> NoiseMap {
-    let basicmulti = BasicMulti::<Perlin>::new(params.seed)
-        .set_octaves(params.octaves)
-        .set_frequency(params.frequency)
-        .set_lacunarity(params.lacunarity);
-
-    PlaneMapBuilder::new(&basicmulti)
-        .set_size(map_size, map_size)
-        .build()
+    match params.kind {
+        NoiseType::Perlin => {
+            let basicmulti = BasicMulti::<Perlin>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+        NoiseType::OpenSimplex => {
+            let basicmulti = BasicMulti::<OpenSimplex>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+        NoiseType::Simplex => {
+            let basicmulti = BasicMulti::<Simplex>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+    }
 }
 
 fn setup(mut commands: Commands, images: ResMut<Assets<Image>>) {
@@ -144,6 +174,28 @@ fn update_gui(
             regen_map(map_component, &parameters);
         }
         ui.label("Parameters");
+        // Noise type
+        ui.horizontal(|ui| {
+            ui.label("Noise Type");
+            if ui
+                .radio_value(&mut parameters.kind, NoiseType::Perlin, "Perlin")
+                .changed()
+            {
+                regen_map(map_component, &parameters);
+            };
+            if ui
+                .radio_value(&mut parameters.kind, NoiseType::OpenSimplex, "OpenSimplex")
+                .changed()
+            {
+                regen_map(map_component, &parameters);
+            };
+            if ui
+                .radio_value(&mut parameters.kind, NoiseType::Simplex, "Simplex")
+                .changed()
+            {
+                regen_map(map_component, &parameters);
+            };
+        });
         if ui
             .add(egui::Slider::new(&mut parameters.seed, 0..=65534).text("Seed"))
             .changed()
