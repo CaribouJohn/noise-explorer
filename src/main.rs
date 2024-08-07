@@ -5,7 +5,7 @@ use bevy_pixel_buffer::prelude::*;
 
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 
-use noise::{utils::*, MultiFractal, OpenSimplex, Simplex, Value};
+use noise::{utils::*, Billow, MultiFractal, OpenSimplex, Simplex, Value, Worley};
 use noise::{BasicMulti, Perlin};
 
 const MAP_SIZE: usize = 1000;
@@ -74,6 +74,7 @@ enum NoiseType {
     Perlin,
     OpenSimplex,
     Simplex,
+    Worley,
 }
 
 impl Default for Parameters {
@@ -110,6 +111,15 @@ fn generate_noise_map(map_size: usize, params: &Parameters) -> NoiseMap {
         }
         NoiseType::Simplex => {
             let basicmulti = BasicMulti::<Simplex>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+        NoiseType::Worley => {
+            let basicmulti = BasicMulti::<Worley>::new(params.seed)
                 .set_octaves(params.octaves)
                 .set_frequency(params.frequency)
                 .set_lacunarity(params.lacunarity);
@@ -191,6 +201,12 @@ fn update_gui(
             };
             if ui
                 .radio_value(&mut parameters.kind, NoiseType::Simplex, "Simplex")
+                .changed()
+            {
+                regen_map(map_component, &parameters);
+            };
+            if ui
+                .radio_value(&mut parameters.kind, NoiseType::Worley, "Worley")
                 .changed()
             {
                 regen_map(map_component, &parameters);
