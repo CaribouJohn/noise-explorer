@@ -5,7 +5,7 @@ use bevy_pixel_buffer::prelude::*;
 
 use bevy_egui::{egui, EguiContexts, EguiPlugin};
 
-use noise::{utils::*, Billow, MultiFractal, OpenSimplex, Simplex, Value, Worley};
+use noise::{utils::*, Billow, MultiFractal, OpenSimplex, RidgedMulti, Simplex, Value, Worley};
 use noise::{BasicMulti, Perlin};
 
 const MAP_SIZE: usize = 1000;
@@ -55,18 +55,26 @@ fn get_color(val: f64) -> Color {
         v if v < 0.7 => Color::srgb_u8(0x8cu8, 0xf6u8, 0x8cu8),
         v if v < 0.8 => Color::srgb_u8(0xb2u8, 0xf9u8, 0xb2u8),
         v if v < 0.9 => Color::srgb_u8(0xd9u8, 0xfcu8, 0xd9u8),
-        v if v <= 1.0 => Color::srgb_u8(0xffu8, 0xffu8, 0xffu8),
-        _ => panic!("unexpected value"),
+        v if v <= 2.0 => Color::srgb_u8(0xffu8, 0xffu8, 0xffu8),
+        _ => panic!("unexpected value ({})", val),
     }
 }
 
 #[derive(Component)]
 struct Parameters {
     kind: NoiseType,
+    fntype: NoiseFn,
     seed: u32,
     frequency: f64,
     octaves: usize,
     lacunarity: f64,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+enum NoiseFn {
+    MultiFractal,
+    RidgedMulti,
+    Billow,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -81,6 +89,7 @@ impl Default for Parameters {
     fn default() -> Self {
         Self {
             kind: NoiseType::Perlin,
+            fntype: NoiseFn::MultiFractal,
             seed: 0,
             frequency: 2.0,
             octaves: 4,
@@ -90,6 +99,14 @@ impl Default for Parameters {
 }
 
 fn generate_noise_map(map_size: usize, params: &Parameters) -> NoiseMap {
+    match params.fntype {
+        NoiseFn::MultiFractal => generate_multi_fractal(map_size, params),
+        NoiseFn::Billow => generate_billow(map_size, params),
+        NoiseFn::RidgedMulti => generate_ridged_multi(map_size, params),
+    }
+}
+
+fn generate_multi_fractal(map_size: usize, params: &Parameters) -> NoiseMap {
     match params.kind {
         NoiseType::Perlin => {
             let basicmulti = BasicMulti::<Perlin>::new(params.seed)
@@ -120,6 +137,88 @@ fn generate_noise_map(map_size: usize, params: &Parameters) -> NoiseMap {
         }
         NoiseType::Worley => {
             let basicmulti = BasicMulti::<Worley>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+    }
+}
+
+fn generate_ridged_multi(map_size: usize, params: &Parameters) -> NoiseMap {
+    match params.kind {
+        NoiseType::Perlin => {
+            let basicmulti = RidgedMulti::<Perlin>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+        NoiseType::OpenSimplex => {
+            let basicmulti = RidgedMulti::<OpenSimplex>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+        NoiseType::Simplex => {
+            let basicmulti = RidgedMulti::<Simplex>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+        NoiseType::Worley => {
+            let basicmulti = RidgedMulti::<Worley>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+    }
+}
+
+fn generate_billow(map_size: usize, params: &Parameters) -> NoiseMap {
+    match params.kind {
+        NoiseType::Perlin => {
+            let basicmulti = Billow::<Perlin>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+        NoiseType::OpenSimplex => {
+            let basicmulti = Billow::<OpenSimplex>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+        NoiseType::Simplex => {
+            let basicmulti = Billow::<Simplex>::new(params.seed)
+                .set_octaves(params.octaves)
+                .set_frequency(params.frequency)
+                .set_lacunarity(params.lacunarity);
+            PlaneMapBuilder::new(&basicmulti)
+                .set_size(map_size, map_size)
+                .build()
+        }
+        NoiseType::Worley => {
+            let basicmulti = Billow::<Worley>::new(params.seed)
                 .set_octaves(params.octaves)
                 .set_frequency(params.frequency)
                 .set_lacunarity(params.lacunarity);
@@ -212,6 +311,34 @@ fn update_gui(
                 regen_map(map_component, &parameters);
             };
         });
+
+        // Noise function
+        ui.horizontal(|ui| {
+            ui.label("Noise Fn");
+            if ui
+                .radio_value(
+                    &mut parameters.fntype,
+                    NoiseFn::MultiFractal,
+                    "Multi Fractal",
+                )
+                .changed()
+            {
+                regen_map(map_component, &parameters);
+            };
+            if ui
+                .radio_value(&mut parameters.fntype, NoiseFn::RidgedMulti, "RidgedMulti")
+                .changed()
+            {
+                regen_map(map_component, &parameters);
+            };
+            if ui
+                .radio_value(&mut parameters.fntype, NoiseFn::Billow, "Billow")
+                .changed()
+            {
+                regen_map(map_component, &parameters);
+            };
+        });
+
         if ui
             .add(egui::Slider::new(&mut parameters.seed, 0..=65534).text("Seed"))
             .changed()
